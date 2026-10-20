@@ -6,6 +6,7 @@
  */
 
 import { isValidHexColor, isValidHttpUrl, escapeHtml } from '../core/utils.js';
+import { getStats, resetStats } from '../core/stats.js';
 import Userscripts from '../features/userscripts.js';
 import featureLoader from '../features/index.js';
 import Registry from '../features/registry.js';
@@ -216,6 +217,7 @@ var SECTION_DEFS = [
   { id: 'global', label: '⚙️ Global Preferences', defaultCollapsed: true },
   { id: 'portal', label: '🖼️ Portal Preferences', defaultCollapsed: true },
   { id: 'site', label: '🖥️ Site Preferences', defaultCollapsed: true },
+  { id: 'stats', label: '🛡️ Protection Statistics', defaultCollapsed: true },
   { id: 'userscripts', label: '📜 User Scripts', defaultCollapsed: true },
 ];
 
@@ -531,6 +533,7 @@ function getVisibleRowsWithSections() {
   }
 
   grouped.userscripts = buildUserscriptRows();
+  grouped.stats = buildStatsRows();
 
   var ordered = [];
   for (var j = 0; j < SECTION_DEFS.length; j++) {
@@ -542,7 +545,7 @@ function getVisibleRowsWithSections() {
     }
 
     var sectionRows = grouped[def.id] || [];
-    if (def.id === 'userscripts') {
+    if (def.id === 'userscripts' || def.id === 'stats') {
       for (var k = 0; k < sectionRows.length; k++) {
         ordered.push(sectionRows[k]);
       }
@@ -611,6 +614,18 @@ function buildUserscriptRows() {
   }
   
   return rows;
+}
+
+function buildStatsRows() {
+  var s = getStats();
+  return [
+    { type: 'stats-display', label: 'Total Items Blocked', value: (s.totalBlocked || 0).toLocaleString() },
+    { type: 'stats-display', label: 'Popups Prevented', value: (s.popups || 0).toLocaleString() },
+    { type: 'stats-display', label: 'Ads & Banners Removed', value: (s.ads || 0).toLocaleString() },
+    { type: 'stats-display', label: 'Tracker Requests Blocked', value: (s.trackers || 0).toLocaleString() },
+    { type: 'stats-display', label: 'Clickjack Traps Cleaned', value: (s.overlays || 0).toLocaleString() },
+    { type: 'stats-action', action: 'reset-stats', label: 'Reset Statistics', value: '⟳ Reset to Zero' },
+  ];
 }
 
 function getCategoryLabel(category) {
@@ -685,6 +700,18 @@ function renderPreferencesUI() {
           '<div class="tp-prefs-label">' + escapeHtml(row.label) + '</div>' +
           '<div class="tp-prefs-value">' + displayValue + '</div>' +
         '</div>';
+    } else if (row.type === 'stats-display') {
+      html += '' +
+        '<div class="tp-prefs-row" data-index="' + i + '" data-type="stats-display" tabindex="0">' +
+          '<div class="tp-prefs-label">' + escapeHtml(row.label) + '</div>' +
+          '<div class="tp-prefs-value" style="color: #3fb950; font-weight: bold;">' + escapeHtml(row.value) + '</div>' +
+        '</div>';
+    } else if (row.type === 'stats-action') {
+      html += '' +
+        '<div class="tp-prefs-row tp-prefs-stats-action" data-index="' + i + '" data-type="stats-action" data-action="' + escapeHtml(row.action) + '" tabindex="0">' +
+          '<div class="tp-prefs-label" style="color: #f85149; font-weight: bold;">' + escapeHtml(row.label) + '</div>' +
+          '<div class="tp-prefs-value" style="color: #f85149;">' + escapeHtml(row.value) + '</div>' +
+        '</div>';
     } else {
       var value = getValue(row);
       var displayValue = formatDisplayValue(row, value);
@@ -710,6 +737,11 @@ function renderPreferencesUI() {
 }
 
 function getPreferencesSectionSummary(sectionId) {
+  if (sectionId === 'stats') {
+    var s = getStats();
+    return (s.totalBlocked || 0).toLocaleString() + ' items blocked';
+  }
+
   if (sectionId === 'userscripts') {
     // Use unified query API
     var scripts = Registry.query({ type: Registry.ITEM_TYPES.USERSCRIPT });
@@ -893,6 +925,23 @@ function activatePreferenceRow(rowEl) {
       focusPreferencesRow(index);
       savePreferencesAuto('userscript-toggle:' + scriptId);
     }
+    return;
+  }
+
+  if (row.type === 'stats-action') {
+    if (row.action === 'reset-stats') {
+      resetStats();
+      renderPreferencesUI();
+      focusPreferencesRow(index);
+      if (typeof window.TizenPortal !== 'undefined' && window.TizenPortal.showToast) {
+        window.TizenPortal.showToast('Protection statistics reset to zero', 2000);
+      }
+    }
+    return;
+  }
+
+  if (row.type === 'stats-display') {
+    // Info display row, no action needed
     return;
   }
 

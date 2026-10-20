@@ -240,7 +240,27 @@ function loadCards() {
         saveCards();
       }
     } else {
-      cardCache = [];
+      cardCache = [
+        {
+          id: generateId(),
+          name: 'FMHY',
+          url: 'https://fmhy.net',
+          featureBundle: 'adblock',
+          icon: 'https://fmhy.net/pwa_icon.png',
+          bundleOptions: {
+            strict: true,
+            blockPopups: true,
+            hideCookieBanners: true,
+            inlineHeuristics: true
+          },
+          bundleOptionData: {},
+          userscriptToggles: {},
+          order: 0,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        }
+      ];
+      saveCards();
     }
   } catch (err) {
     console.error('TizenPortal: Failed to load cards:', err);

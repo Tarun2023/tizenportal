@@ -206,6 +206,13 @@ setTimeout(() => {
   assert(typeof win.fbq === 'function', 'window.fbq is stubbed');
   assert(adblockBundle.getBlockedCount() >= 5, 'adblock.getBlockedCount() tracked blocked items correctly (count: ' + adblockBundle.getBlockedCount() + ')');
 
+  console.log('\n--- Test Group 7: Persistent Statistics & Global Storage ---');
+  assert(typeof TP.stats === 'object', 'TizenPortal.stats API is exposed');
+  const stats = TP.stats.get();
+  assert(stats && stats.totalBlocked > 0, 'Global statistics stored in localStorage (totalBlocked: ' + stats.totalBlocked + ')');
+  assert(stats.popups > 0, 'Popups counter persisted (> 0): ' + stats.popups);
+  assert(typeof TP.stats.reset === 'function', 'TizenPortal.stats.reset() is available');
+
   console.log('\n====================================================');
   console.log('              TEST RUN SUMMARY                      ');
   console.log('====================================================');

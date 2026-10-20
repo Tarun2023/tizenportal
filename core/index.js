@@ -62,6 +62,7 @@ import { initSiteEditor, showAddSiteEditor, showEditSiteEditor, isSiteEditorOpen
 import { initPreferences, showPreferences, closePreferences, isPreferencesOpen, applyPortalPreferences } from '../ui/preferences.js';
 import { initAddressBar, showAddressBar, hideAddressBar, toggleAddressBar, isAddressBarVisible } from '../ui/addressbar.js';
 import { initDiagnostics, log, warn, error, onLogEntry, getLogEntries } from '../diagnostics/console.js';
+import { getStats, saveStats, recordBlocked, resetStats, mergeStats } from './stats.js';
 import { initDiagnosticsPanel, showDiagnosticsPanel, hideDiagnosticsPanel, toggleDiagnosticsPanel } from '../ui/diagnostics.js';
 import { loadBundle, unloadBundle, getActiveBundle, getActiveBundleName, handleBundleKeyDown, handleBundleNavigate, setActiveBundle, registerBundleCleanup } from './loader.js';
 import { getBundleNames, getBundle, logDependencyWarnings } from '../bundles/registry.js';
@@ -880,6 +881,27 @@ async function initPortalPage() {
     }
   } catch (e) {
     warn('Failed to process pending card from URL: ' + e.message);
+  }
+
+  // Check for protection stats payload passed via URL or window.name
+  try {
+    var statsHash = getCapturedHash(/[#&]stats=/);
+    var statsMatch = statsHash.match(/[#&]stats=([^&]+)/);
+    if (statsMatch) {
+      var statsData = JSON.parse(decodeURIComponent(escape(atob(statsMatch[1]))));
+      if (statsData) {
+        mergeStats(statsData);
+        log('Protection statistics merged from return payload: ' + statsData.totalBlocked + ' total blocked');
+      }
+      try {
+        history.replaceState(null, '', window.location.href.replace(/[#&]stats=[^&]*/g, '').replace(/[?&]#/, '#').replace(/[?&]$/, '').replace(/#$/, ''));
+      } catch (e) { /* ignore */ }
+    } else {
+      // Sync any stats that arrived via window.name
+      mergeStats(getStats());
+    }
+  } catch (e) {
+    warn('Failed to process protection statistics from URL: ' + e.message);
   }
 
   // Initialize modal system
@@ -2308,8 +2330,18 @@ function toggleSiteDiagnostics() {
  */
 function returnToPortal() {
   log('Returning to portal...');
+  var portalUrl = PORTAL_BASE_URL + '/index.html?v=' + encodeURIComponent(VERSION);
+  try {
+    var s = getStats();
+    if (s && s.totalBlocked > 0) {
+      var enc = btoa(unescape(encodeURIComponent(JSON.stringify(s))));
+      portalUrl += '#stats=' + enc;
+    }
+  } catch (e) {
+    // Ignore stats encoding error
+  }
   // Navigate to portal using absolute URL (works from any site)
-  window.location.href = PORTAL_BASE_URL + '/index.html?v=' + encodeURIComponent(VERSION);
+  window.location.href = portalUrl;
 }
 
 /**
@@ -2785,7 +2817,13 @@ function navigateUrl(url) {
       id: null,
       name: url,
       url: url,
-      featureBundle: 'default',
+      featureBundle: 'adblock',
+      bundleOptions: {
+        strict: true,
+        blockPopups: true,
+        hideCookieBanners: true,
+        inlineHeuristics: true
+      }
     };
     loadSite(adhocCard);
     return;
@@ -2903,6 +2941,15 @@ var TizenPortalAPI = {
   error: error,
   onLogEntry: onLogEntry,
   getLogEntries: getLogEntries,
+
+  // Protection Statistics (persistent across sessions & restarts)
+  stats: {
+    get: getStats,
+    save: saveStats,
+    record: recordBlocked,
+    reset: resetStats,
+    merge: mergeStats,
+  },
 
   // Configuration
   config: {

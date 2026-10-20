@@ -582,12 +582,13 @@ export function showAddSiteEditor(onComplete) {
   state.card = {
     name: '',
     url: '',
-    featureBundle: null,
+    featureBundle: 'adblock',
     icon: '',
     bundleOptions: {},
     bundleOptionData: {},
     userscriptToggles: {},
   };
+  resetBundleOptionsForBundle('adblock');
   state.onComplete = onComplete;
   
   openEditor();

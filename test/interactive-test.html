@@ -198,7 +198,8 @@
       <div>
         <strong>Samsung Smart TV Simulator</strong> &nbsp;
         <span class="badge">1920 × 1080 (Chrome 47-69 Mock)</span>
-        <span class="badge badge-blocked" id="badge-blocked">0 Ads/Popups Blocked</span>
+        <span class="badge badge-blocked" id="badge-blocked">0 Session Blocked</span>
+        <span class="badge" id="badge-lifetime" style="background: #1f6feb; margin-left: 8px;">0 Lifetime Stored</span>
       </div>
       <div>
         <span style="font-size: 13px; color: #8b949e;">Bundle: <strong>adblock</strong> (v1121)</span>
@@ -235,10 +236,17 @@
         </div>
 
         <h3>4. Request Blocking Tests (Fetch & XHR)</h3>
-        <div class="btn-grid">
+        <div class="btn-grid" style="margin-bottom: 20px;">
           <button onclick="testFetchAd()">🌐 fetch() to Google AdServices</button>
           <button onclick="testXHRAd()">🌐 XMLHttpRequest to DoubleClick</button>
           <button onclick="testAdStubs()">🧩 Verify Ad SDK Stubs (adsbygoogle)</button>
+        </div>
+
+        <h3>5. Global Persistent Storage Tests</h3>
+        <div class="btn-grid">
+          <button onclick="testShowLifetimeStats()">📊 Inspect Global Storage</button>
+          <button class="btn-danger" onclick="testResetStats()">🗑️ Reset Global Storage</button>
+          <button onclick="window.location.reload()">🔄 Simulate Restart (Reload Page)</button>
         </div>
       </div>
     </div>
@@ -306,14 +314,25 @@
         var adblock = window.TizenPortal.bundles.get('adblock');
         if (adblock && typeof adblock.getBlockedCount === 'function') {
           blockedCount = adblock.getBlockedCount();
-          badgeBlocked.textContent = blockedCount + ' Ads/Popups Blocked';
-          return;
         }
-      }
-      if (delta) {
+      } else if (delta) {
         blockedCount += delta;
       }
-      badgeBlocked.textContent = blockedCount + ' Ads/Popups Blocked';
+      badgeBlocked.textContent = blockedCount + ' Session Blocked';
+
+      var lifetimeEl = document.getElementById('badge-lifetime');
+      if (lifetimeEl) {
+        var lifetimeCount = 0;
+        if (window.TizenPortal && window.TizenPortal.stats) {
+          lifetimeCount = window.TizenPortal.stats.get().totalBlocked || 0;
+        } else {
+          try {
+            var raw = localStorage.getItem('tp_adblock_stats');
+            if (raw) lifetimeCount = JSON.parse(raw).totalBlocked || 0;
+          } catch (e) {}
+        }
+        lifetimeEl.textContent = lifetimeCount + ' Lifetime Stored';
+      }
     }
 
     function clearLogs() {
@@ -464,6 +483,32 @@
       } catch (e) {
         logEvent('blocked', 'Stub error: ' + e.message);
       }
+    }
+
+    function testShowLifetimeStats() {
+      var s = null;
+      if (window.TizenPortal && window.TizenPortal.stats) {
+        s = window.TizenPortal.stats.get();
+      } else {
+        try {
+          var raw = localStorage.getItem('tp_adblock_stats');
+          if (raw) s = JSON.parse(raw);
+        } catch (e) {}
+      }
+      s = s || { totalBlocked: 0, ads: 0, popups: 0, trackers: 0, overlays: 0 };
+      logEvent('info', '📊 Lifetime Stats: Total=' + (s.totalBlocked || 0) + ' (Popups: ' + (s.popups || 0) + ', Ads: ' + (s.ads || 0) + ', Trackers: ' + (s.trackers || 0) + ', Overlays: ' + (s.overlays || 0) + ')');
+    }
+
+    function testResetStats() {
+      if (window.TizenPortal && window.TizenPortal.stats) {
+        window.TizenPortal.stats.reset();
+      } else {
+        try {
+          localStorage.setItem('tp_adblock_stats', JSON.stringify({ totalBlocked: 0, ads: 0, popups: 0, trackers: 0, overlays: 0, lastUpdated: Date.now() }));
+        } catch (e) {}
+      }
+      syncBlockedCount();
+      logEvent('blocked', '🗑️ Persistent statistics reset to zero.');
     }
 
     function sendTvKey(keyCode) {

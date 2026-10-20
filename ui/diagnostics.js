@@ -6,6 +6,7 @@
 
 import { getLogEntries, clearLogEntries, onLogEntry, formatTimestamp } from '../diagnostics/console.js';
 import { configGet } from '../core/config.js';
+import { getStats } from '../core/stats.js';
 
 /**
  * Panel element
@@ -267,6 +268,15 @@ function updateInfo() {
       }
     }
   } catch (err2) {
+    // Ignore
+  }
+
+  try {
+    var s = getStats();
+    if (s && s.totalBlocked > 0) {
+      info.push('Shield: ' + s.totalBlocked + ' blocked (' + s.popups + ' popups, ' + s.ads + ' ads, ' + s.trackers + ' reqs, ' + s.overlays + ' traps)');
+    }
+  } catch (err3) {
     // Ignore
   }
 

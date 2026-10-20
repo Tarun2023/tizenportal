@@ -18,7 +18,7 @@
       "key": "strict",
       "label": "Strict Mode",
       "type": "toggle",
-      "default": false,
+      "default": true,
       "description": "Enable stricter ad blocking (may hide more content)"
     },
     {
@@ -32,7 +32,7 @@
       "key": "hideCookieBanners",
       "label": "Hide Cookie Banners",
       "type": "toggle",
-      "default": false,
+      "default": true,
       "description": "Hide cookie/consent banners"
     },
     {

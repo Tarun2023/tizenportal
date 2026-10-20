@@ -16,6 +16,7 @@
 
 import adblockStyles from './style.css';
 import { injectCSS, removeCSS } from '../../core/utils.js';
+import { recordBlocked, getStats, saveStats, resetStats } from '../../core/stats.js';
 
 /**
  * Consolidated ad-related URL patterns
@@ -340,7 +341,7 @@ var state = {
   cleanupInterval: null,
   blocked: 0,
   enabled: true,
-  strict: false,
+  strict: true,
   allowlist: [],
   domIntercepted: false,
   originalAppendChild: null,
@@ -351,7 +352,7 @@ var state = {
   originalXHRSend: null,
   originalFetch: null,
   targetWindow: null,
-  hideCookieBanners: false,
+  hideCookieBanners: true,
   inlineHeuristics: true,
   blockPopups: true,
   originalWindowOpen: null,
@@ -369,11 +370,18 @@ export default {
   style: adblockStyles,
 
   /**
-   * Return number of blocked ads, popups, and requests
+   * Return number of blocked ads, popups, and requests in current session
    */
   getBlockedCount: function() {
     return state.blocked;
   },
+
+  /**
+   * Return persistent lifetime statistics across sessions and restarts
+   */
+  getGlobalStats: getStats,
+  saveGlobalStats: saveStats,
+  resetGlobalStats: resetStats,
 
   /**
    * Called before page content loads
@@ -486,8 +494,8 @@ export default {
     var options = (card && card.bundleOptions) ? card.bundleOptions : {};
     var optionData = (card && card.bundleOptionData) ? card.bundleOptionData : {};
 
-    state.strict = !!options.strict;
-    state.hideCookieBanners = !!options.hideCookieBanners;
+    state.strict = options.strict !== false;
+    state.hideCookieBanners = options.hideCookieBanners !== false;
     state.inlineHeuristics = options.inlineHeuristics !== false;
     state.blockPopups = options.blockPopups !== false;
 
@@ -670,6 +678,7 @@ export default {
     
     if (removed > 0) {
       state.blocked += removed;
+      recordBlocked('ad', removed);
       console.log('TizenPortal [AdBlock]: Removed', removed, 'ad elements');
     }
 
@@ -678,6 +687,7 @@ export default {
       var imageRemoved = this.removeImageAds(doc);
       if (imageRemoved > 0) {
         state.blocked += imageRemoved;
+        recordBlocked('ad', imageRemoved);
         console.log('TizenPortal [AdBlock]: Removed', imageRemoved, 'ad images');
       }
     }
@@ -709,6 +719,7 @@ export default {
 
     if (removed > 0) {
       state.blocked += removed;
+      recordBlocked('ad', removed);
       console.log('TizenPortal [AdBlock]: Removed', removed, 'cookie/consent elements');
     }
   },
@@ -833,6 +844,7 @@ export default {
           if (self.isAdURL(url)) {
             console.log('TizenPortal [AdBlock]: Blocked XHR:', url.substring(0, 60));
             state.blocked++;
+            recordBlocked('tracker', 1);
             // Return a dummy that does nothing
             this._blocked = true;
             return;
@@ -862,6 +874,7 @@ export default {
           if (self.isAdURL(urlStr)) {
             console.log('TizenPortal [AdBlock]: Blocked fetch:', urlStr.substring(0, 60));
             state.blocked++;
+            recordBlocked('tracker', 1);
             // Return rejected promise
             return Promise.reject(new Error('Blocked by TizenPortal AdBlock'));
           }
@@ -908,6 +921,7 @@ export default {
           if (tag === 'SCRIPT' || tag === 'IFRAME') {
             if (self.shouldBlockNode(node)) {
               state.blocked++;
+              recordBlocked('ad', 1);
               return node;
             }
           }
@@ -922,6 +936,7 @@ export default {
           if (tag === 'SCRIPT' || tag === 'IFRAME') {
             if (self.shouldBlockNode(node)) {
               state.blocked++;
+              recordBlocked('ad', 1);
               return node;
             }
           }
@@ -936,6 +951,7 @@ export default {
           if (tag === 'SCRIPT' || tag === 'IFRAME') {
             if (self.shouldBlockNode(node)) {
               state.blocked++;
+              recordBlocked('ad', 1);
               return oldChild;
             }
           }
@@ -1275,6 +1291,7 @@ export default {
           if (isBlankOrAd || self.isLikelyPopup(urlStr, target, features)) {
             console.log('TizenPortal [AdBlock]: Blocked popup window.open:', (urlStr || '(blank)').substring(0, 80));
             state.blocked++;
+            recordBlocked('popup', 1);
             return createMockWindow();
           }
 
@@ -1287,6 +1304,7 @@ export default {
         if (self.isAdURL(urlStr)) {
           console.log('TizenPortal [AdBlock]: Blocked ad window.open:', urlStr.substring(0, 80));
           state.blocked++;
+          recordBlocked('popup', 1);
           return createMockWindow();
         }
 
@@ -1347,6 +1365,7 @@ export default {
             e.stopPropagation();
             if (e.stopImmediatePropagation) e.stopImmediatePropagation();
             state.blocked++;
+            recordBlocked('ad', 1);
             console.log('TizenPortal [AdBlock]: Blocked click on ad link:', href.substring(0, 80));
             return;
           }
@@ -1367,6 +1386,7 @@ export default {
           if (e.stopImmediatePropagation) e.stopImmediatePropagation();
           target.remove();
           state.blocked++;
+          recordBlocked('overlay', 1);
           console.log('TizenPortal [AdBlock]: Intercepted and removed clickjack overlay');
           return;
         }
@@ -1388,6 +1408,7 @@ export default {
           if (self.isAdURL(href)) {
             console.log('TizenPortal [AdBlock]: Blocked programmatic anchor click:', href.substring(0, 80));
             state.blocked++;
+            recordBlocked('ad', 1);
             return;
           }
           if ((this.target || '').toLowerCase() === '_blank') {
@@ -1455,6 +1476,7 @@ export default {
         if (this.isClickOverlay(overlays[i])) {
           overlays[i].remove();
           state.blocked++;
+          recordBlocked('overlay', 1);
           console.log('TizenPortal [AdBlock]: Removed clickjack overlay element');
         }
       }
