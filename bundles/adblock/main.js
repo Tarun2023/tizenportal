@@ -369,6 +369,13 @@ export default {
   style: adblockStyles,
 
   /**
+   * Return number of blocked ads, popups, and requests
+   */
+  getBlockedCount: function() {
+    return state.blocked;
+  },
+
+  /**
    * Called before page content loads
    */
   onBeforeLoad: function(win, card) {

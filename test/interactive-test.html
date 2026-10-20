@@ -301,8 +301,18 @@
       logBox.scrollTop = logBox.scrollHeight;
     }
 
-    function updateBlocked(count) {
-      blockedCount += (count || 1);
+    function syncBlockedCount(delta) {
+      if (window.TizenPortal && window.TizenPortal.bundles) {
+        var adblock = window.TizenPortal.bundles.get('adblock');
+        if (adblock && typeof adblock.getBlockedCount === 'function') {
+          blockedCount = adblock.getBlockedCount();
+          badgeBlocked.textContent = blockedCount + ' Ads/Popups Blocked';
+          return;
+        }
+      }
+      if (delta) {
+        blockedCount += delta;
+      }
       badgeBlocked.textContent = blockedCount + ' Ads/Popups Blocked';
     }
 
@@ -310,22 +320,41 @@
       logBox.innerHTML = '';
     }
 
+    function handleLogMessage(str) {
+      if (str.indexOf('[AdBlock]: Blocked') !== -1 || str.indexOf('Neutralized') !== -1 || str.indexOf('overlay') !== -1) {
+        logEvent('blocked', '🛡️ ' + str);
+        syncBlockedCount(1);
+      } else if (str.indexOf('TizenPortal') !== -1) {
+        logEvent('info', 'ℹ️ ' + str);
+      }
+    }
+
     // Intercept console.log from TizenPortal to display in our UI logger
     var origLog = console.log;
     console.log = function() {
       origLog.apply(console, arguments);
       var str = Array.prototype.slice.call(arguments).join(' ');
-      if (str.indexOf('[AdBlock]: Blocked') !== -1 || str.indexOf('Neutralized') !== -1 || str.indexOf('overlay') !== -1) {
-        logEvent('blocked', '🛡️ ' + str);
-        updateBlocked(1);
-      } else if (str.indexOf('TizenPortal') !== -1) {
-        logEvent('info', 'ℹ️ ' + str);
-      }
+      handleLogMessage(str);
     };
+
+    // Also listen on document clicks to sync blocked counters immediately
+    document.addEventListener('click', function() {
+      setTimeout(syncBlockedCount, 50);
+    }, false);
 
     // Activate the AdBlock bundle on this test page
     window.addEventListener('DOMContentLoaded', function() {
       logEvent('info', 'Page initialized. Activating AdBlock bundle...');
+      
+      // Connect to TizenPortal log listener if available
+      if (window.TizenPortal && typeof window.TizenPortal.onLogEntry === 'function') {
+        window.TizenPortal.onLogEntry(function(entry) {
+          if (entry && entry.message) {
+            handleLogMessage(entry.message);
+          }
+        });
+      }
+
       if (window.TizenPortal && window.TizenPortal.bundles) {
         var adblock = window.TizenPortal.bundles.get('adblock');
         if (adblock) {
@@ -337,9 +366,13 @@
             bundleOptions: { strict: true, blockPopups: true }
           });
           adblock.onAfterLoad(window, {});
+          syncBlockedCount();
           logEvent('success', '✅ AdBlock bundle activated with strict mode & popup blocker.');
         }
       }
+
+      // Periodically sync the counter from the adblock engine
+      setInterval(syncBlockedCount, 1000);
     });
 
     // Test functions

@@ -95,6 +95,8 @@ assert(manifest && manifest.provides && manifest.provides.includes('popup-blocki
 const blockPopupsOption = manifest && manifest.options ? manifest.options.find(o => o.key === 'blockPopups') : null;
 assert(!!blockPopupsOption, 'AdBlock manifest exposes "blockPopups" option');
 assert(blockPopupsOption && blockPopupsOption.default === true, '"blockPopups" defaults to true');
+assert(typeof adblockBundle.getBlockedCount === 'function', 'AdBlock exposes getBlockedCount() API');
+assert(typeof TP.onLogEntry === 'function', 'TizenPortal exposes onLogEntry listener API');
 
 
 console.log('\n--- Test Group 2: Popup Blocker (window.open Interception) ---');
@@ -202,6 +204,7 @@ setTimeout(() => {
   assert(typeof win.gtag === 'function', 'window.gtag is stubbed');
   assert(typeof win.ga === 'function', 'window.ga is stubbed');
   assert(typeof win.fbq === 'function', 'window.fbq is stubbed');
+  assert(adblockBundle.getBlockedCount() >= 5, 'adblock.getBlockedCount() tracked blocked items correctly (count: ' + adblockBundle.getBlockedCount() + ')');
 
   console.log('\n====================================================');
   console.log('              TEST RUN SUMMARY                      ');

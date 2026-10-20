@@ -61,7 +61,7 @@ import { initModal } from '../ui/modal.js';
 import { initSiteEditor, showAddSiteEditor, showEditSiteEditor, isSiteEditorOpen } from '../ui/siteeditor.js';
 import { initPreferences, showPreferences, closePreferences, isPreferencesOpen, applyPortalPreferences } from '../ui/preferences.js';
 import { initAddressBar, showAddressBar, hideAddressBar, toggleAddressBar, isAddressBarVisible } from '../ui/addressbar.js';
-import { initDiagnostics, log, warn, error } from '../diagnostics/console.js';
+import { initDiagnostics, log, warn, error, onLogEntry, getLogEntries } from '../diagnostics/console.js';
 import { initDiagnosticsPanel, showDiagnosticsPanel, hideDiagnosticsPanel, toggleDiagnosticsPanel } from '../ui/diagnostics.js';
 import { loadBundle, unloadBundle, getActiveBundle, getActiveBundleName, handleBundleKeyDown, handleBundleNavigate, setActiveBundle, registerBundleCleanup } from './loader.js';
 import { getBundleNames, getBundle, logDependencyWarnings } from '../bundles/registry.js';
@@ -2897,10 +2897,12 @@ var TizenPortalAPI = {
   // Context (portal page or target site)
   get isPortalPage() { return state.isPortalPage; },
 
-  // Logging
+  // Logging & Diagnostics
   log: log,
   warn: warn,
   error: error,
+  onLogEntry: onLogEntry,
+  getLogEntries: getLogEntries,
 
   // Configuration
   config: {
