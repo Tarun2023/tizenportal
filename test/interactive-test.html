@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TizenPortal TV Simulator & Test Lab</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0b111a;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #tv-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 2px solid #21262d;
+      background: #0d1117;
+      position: relative;
+      overflow: hidden;
+    }
+    #tv-header {
+      padding: 16px 24px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .badge {
+      background: #238636;
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .badge-blocked {
+      background: #da3633;
+      margin-left: 8px;
+    }
+    #tv-viewport {
+      flex: 1;
+      padding: 30px;
+      overflow-y: auto;
+    }
+    .card-panel {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    h2 { font-size: 18px; margin-bottom: 12px; color: #58a6ff; }
+    h3 { font-size: 15px; margin-bottom: 8px; color: #8b949e; }
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    button, .test-btn {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    button:hover, .test-btn:hover {
+      background: #30363d;
+      border-color: #8b949e;
+      color: #fff;
+    }
+    button:focus, .test-btn:focus {
+      outline: 3px solid #58a6ff;
+      border-color: #58a6ff;
+    }
+    .btn-danger {
+      border-color: #da3633;
+      color: #f85149;
+    }
+    .btn-danger:hover {
+      background: #b62324;
+      color: #fff;
+    }
+    #sidebar {
+      width: 420px;
+      background: #161b22;
+      display: flex;
+      flex-direction: column;
+    }
+    #remote-container {
+      padding: 20px;
+      border-bottom: 1px solid #30363d;
+      text-align: center;
+    }
+    .remote-title {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8b949e;
+      margin-bottom: 12px;
+    }
+    .dpad-container {
+      width: 140px;
+      height: 140px;
+      margin: 0 auto 16px auto;
+      position: relative;
+    }
+    .dpad-btn {
+      position: absolute;
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      text-align: center;
+      line-height: 40px;
+      font-weight: bold;
+      border-radius: 6px;
+    }
+    .dpad-up { top: 0; left: 49px; }
+    .dpad-down { bottom: 0; left: 49px; }
+    .dpad-left { top: 49px; left: 0; }
+    .dpad-right { top: 49px; right: 0; }
+    .dpad-ok {
+      top: 49px;
+      left: 49px;
+      background: #238636;
+      border-color: #2ea043;
+      color: #fff;
+    }
+    .color-btn-row {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+    .color-btn {
+      width: 36px;
+      height: 24px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+    }
+    .c-red { background: #f85149; }
+    .c-green { background: #3fb950; }
+    .c-yellow { background: #d29922; }
+    .c-blue { background: #58a6ff; }
+    .color-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #8b949e;
+      padding: 0 10px;
+    }
+    #log-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 14px;
+      overflow: hidden;
+    }
+    #log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    #log-box {
+      flex: 1;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+    .log-entry { margin-bottom: 4px; }
+    .log-blocked { color: #f85149; }
+    .log-success { color: #3fb950; }
+    .log-info { color: #58a6ff; }
+  </style>
+</head>
+<body>
+
+  <!-- Mock TV Viewport -->
+  <div id="tv-screen">
+    <div id="tv-header">
+      <div>
+        <strong>Samsung Smart TV Simulator</strong> &nbsp;
+        <span class="badge">1920 × 1080 (Chrome 47-69 Mock)</span>
+        <span class="badge badge-blocked" id="badge-blocked">0 Ads/Popups Blocked</span>
+      </div>
+      <div>
+        <span style="font-size: 13px; color: #8b949e;">Bundle: <strong>adblock</strong> (v1121)</span>
+      </div>
+    </div>
+
+    <div id="tv-viewport">
+      <div class="card-panel">
+        <h2>🎬 Simulated Anime / Video Streaming Site</h2>
+        <p style="color: #8b949e; font-size: 14px; margin-bottom: 16px;">
+          This page simulates <strong>senpai-stream.makeup</strong> attack vectors: hidden popunders, transparent clickjack traps, and ad network triggers.
+        </p>
+
+        <h3>1. Pop-up & Pop-under Tests (window.open)</h3>
+        <div class="btn-grid" style="margin-bottom: 20px;">
+          <button class="btn-danger" onclick="testPopAds()">💥 Trigger PopAds (window.open)</button>
+          <button class="btn-danger" onclick="testAdsterra()">💥 Trigger Adsterra Popunder</button>
+          <button class="btn-danger" onclick="testMonetag()">💥 Trigger Monetag Popup</button>
+          <button class="btn-danger" onclick="testBlankPopup()">💥 Trigger about:blank Popup</button>
+        </div>
+
+        <h3>2. Link Clicks & target="_blank" Tests</h3>
+        <div class="btn-grid" style="margin-bottom: 20px;">
+          <a class="test-btn btn-danger" id="ad-link-test" href="https://popads.net/serve" target="_blank">🔗 Click PopAds Link (_blank)</a>
+          <a class="test-btn btn-danger" id="bet-link-test" href="https://bet365.com/landing" target="_blank">🔗 Click Betting Ad Link (_blank)</a>
+          <a class="test-btn" id="clean-link-test" href="https://example.com/movie" target="_blank">🔗 Click Clean Link (_blank)</a>
+          <button class="btn-danger" onclick="testProgrammaticClick()">⚡ Programmatic a.click() to Ad</button>
+        </div>
+
+        <h3>3. Invisible Clickjack & Overlay Tests</h3>
+        <div class="btn-grid" style="margin-bottom: 20px;">
+          <button class="btn-danger" onclick="testInjectOverlay()">🛡️ Inject Invisible Clickjack Trap</button>
+          <button onclick="testRemoveOverlays()">🧹 Trigger Clean Overlays Scan</button>
+        </div>
+
+        <h3>4. Request Blocking Tests (Fetch & XHR)</h3>
+        <div class="btn-grid">
+          <button onclick="testFetchAd()">🌐 fetch() to Google AdServices</button>
+          <button onclick="testXHRAd()">🌐 XMLHttpRequest to DoubleClick</button>
+          <button onclick="testAdStubs()">🧩 Verify Ad SDK Stubs (adsbygoogle)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TV Remote Controller & Test Console -->
+  <div id="sidebar">
+    <div id="remote-container">
+      <div class="remote-title">Samsung TV Remote Control</div>
+      
+      <!-- Color Buttons -->
+      <div class="color-btn-row">
+        <button class="color-btn c-red" title="Red: Address Bar" onclick="sendTvKey(403)"></button>
+        <button class="color-btn c-green" title="Green: Mouse Mode" onclick="sendTvKey(404)"></button>
+        <button class="color-btn c-yellow" title="Yellow: Return to Portal / Prefs" onclick="sendTvKey(405)"></button>
+        <button class="color-btn c-blue" title="Blue: Diagnostics Panel" onclick="sendTvKey(406)"></button>
+      </div>
+      <div class="color-labels">
+        <span>Red: URL</span>
+        <span>Green: Mouse</span>
+        <span>Yellow: Portal</span>
+        <span>Blue: Console</span>
+      </div>
+
+      <!-- D-Pad -->
+      <div class="dpad-container" style="margin-top: 16px;">
+        <button class="dpad-btn dpad-up" onclick="sendTvKey(38)">▲</button>
+        <button class="dpad-btn dpad-left" onclick="sendTvKey(37)">◀</button>
+        <button class="dpad-btn dpad-ok" onclick="sendTvKey(13)">OK</button>
+        <button class="dpad-btn dpad-right" onclick="sendTvKey(39)">▶</button>
+        <button class="dpad-btn dpad-down" onclick="sendTvKey(40)">▼</button>
+      </div>
+
+      <button style="width: 100%; text-align: center;" onclick="sendTvKey(10009)">↩ Back Button (10009)</button>
+    </div>
+
+    <div id="log-panel">
+      <div id="log-header">
+        <span style="font-weight: 600; font-size: 13px;">Interceptor Activity Log</span>
+        <button style="padding: 2px 8px; font-size: 11px;" onclick="clearLogs()">Clear</button>
+      </div>
+      <div id="log-box"></div>
+    </div>
+  </div>
+
+  <!-- Load TizenPortal Runtime Bundle -->
+  <script src="../dist/tizenportal.js"></script>
+
+  <script>
+    var blockedCount = 0;
+    var logBox = document.getElementById('log-box');
+    var badgeBlocked = document.getElementById('badge-blocked');
+
+    function logEvent(type, message) {
+      var entry = document.createElement('div');
+      entry.className = 'log-entry ' + (type === 'blocked' ? 'log-blocked' : (type === 'success' ? 'log-success' : 'log-info'));
+      var time = new Date().toLocaleTimeString();
+      entry.textContent = '[' + time + '] ' + message;
+      logBox.appendChild(entry);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function updateBlocked(count) {
+      blockedCount += (count || 1);
+      badgeBlocked.textContent = blockedCount + ' Ads/Popups Blocked';
+    }
+
+    function clearLogs() {
+      logBox.innerHTML = '';
+    }
+
+    // Intercept console.log from TizenPortal to display in our UI logger
+    var origLog = console.log;
+    console.log = function() {
+      origLog.apply(console, arguments);
+      var str = Array.prototype.slice.call(arguments).join(' ');
+      if (str.indexOf('[AdBlock]: Blocked') !== -1 || str.indexOf('Neutralized') !== -1 || str.indexOf('overlay') !== -1) {
+        logEvent('blocked', '🛡️ ' + str);
+        updateBlocked(1);
+      } else if (str.indexOf('TizenPortal') !== -1) {
+        logEvent('info', 'ℹ️ ' + str);
+      }
+    };
+
+    // Activate the AdBlock bundle on this test page
+    window.addEventListener('DOMContentLoaded', function() {
+      logEvent('info', 'Page initialized. Activating AdBlock bundle...');
+      if (window.TizenPortal && window.TizenPortal.bundles) {
+        var adblock = window.TizenPortal.bundles.get('adblock');
+        if (adblock) {
+          adblock.onBeforeLoad(window, {
+            id: 'test-card',
+            name: 'Local Test Lab',
+            url: window.location.href,
+            featureBundle: 'adblock',
+            bundleOptions: { strict: true, blockPopups: true }
+          });
+          adblock.onAfterLoad(window, {});
+          logEvent('success', '✅ AdBlock bundle activated with strict mode & popup blocker.');
+        }
+      }
+    });
+
+    // Test functions
+    function testPopAds() {
+      logEvent('info', 'Triggering window.open("https://popads.net/serve", "_blank")...');
+      var w = window.open('https://popads.net/serve?aff=999', '_blank', 'width=800,height=600');
+      if (w && w.closed === false) {
+        logEvent('success', 'Protected: window.open intercepted safely! Dummy window returned.');
+      }
+    }
+
+    function testAdsterra() {
+      logEvent('info', 'Triggering window.open("https://adsterra.com/click")...');
+      window.open('https://adsterra.com/click', '_blank');
+    }
+
+    function testMonetag() {
+      logEvent('info', 'Triggering window.open("https://monetag.com/track")...');
+      window.open('https://monetag.com/track', '_blank');
+    }
+
+    function testBlankPopup() {
+      logEvent('info', 'Triggering window.open("about:blank", "_blank")...');
+      window.open('about:blank', '_blank');
+    }
+
+    function testProgrammaticClick() {
+      logEvent('info', 'Creating hidden <a> tag to adsterra.com and calling a.click()...');
+      var a = document.createElement('a');
+      a.href = 'https://adsterra.com/popunder';
+      a.target = '_blank';
+      a.click();
+    }
+
+    function testInjectOverlay() {
+      var ov = document.createElement('div');
+      ov.id = 'demo-clickjack-trap';
+      ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(255,0,0,0.2);z-index:2147483647;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;color:#fff;';
+      ov.textContent = '⚠️ Clickjack Overlay (Clicking anywhere will trigger ad redirect)';
+      ov.onclick = function() {
+        logEvent('blocked', 'Trap clicked! Attempting redirect to adsterra...');
+        window.open('https://adsterra.com/redirect', '_blank');
+      };
+      document.body.appendChild(ov);
+      logEvent('info', 'Injected full-screen clickjack overlay (z-index: 2147483647).');
+    }
+
+    function testRemoveOverlays() {
+      if (window.TizenPortal && window.TizenPortal.bundles) {
+        var adblock = window.TizenPortal.bundles.get('adblock');
+        if (adblock && adblock.removeClickOverlays) {
+          adblock.removeClickOverlays(document);
+          var el = document.getElementById('demo-clickjack-trap');
+          if (!el) {
+            logEvent('success', '✅ Overlay scan removed the clickjack trap!');
+          }
+        }
+      }
+    }
+
+    function testFetchAd() {
+      logEvent('info', 'Calling fetch("https://googleadservices.com/pagead/show_ads.js")...');
+      fetch('https://googleadservices.com/pagead/show_ads.js')
+        .then(function() {
+          logEvent('info', 'Fetch completed');
+        })
+        .catch(function(err) {
+          logEvent('success', '✅ fetch() correctly rejected: ' + err.message);
+        });
+    }
+
+    function testXHRAd() {
+      logEvent('info', 'Calling new XMLHttpRequest() to doubleclick.net...');
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', 'https://doubleclick.net/ad');
+      xhr.send();
+      if (xhr._blocked) {
+        logEvent('success', '✅ XHR correctly intercepted and dropped (_blocked: true)');
+      }
+    }
+
+    function testAdStubs() {
+      logEvent('info', 'Testing global ad SDK stubs...');
+      try {
+        window.adsbygoogle.push({});
+        window.gtag('event', 'test');
+        window.ga('send', 'pageview');
+        logEvent('success', '✅ window.adsbygoogle, gtag, ga stubs executed cleanly without error!');
+      } catch (e) {
+        logEvent('blocked', 'Stub error: ' + e.message);
+      }
+    }
+
+    function sendTvKey(keyCode) {
+      logEvent('info', 'Remote button pressed (keyCode: ' + keyCode + ')');
+      var down = new KeyboardEvent('keydown', { keyCode: keyCode, which: keyCode, bubbles: true, cancelable: true });
+      var up = new KeyboardEvent('keyup', { keyCode: keyCode, which: keyCode, bubbles: true, cancelable: true });
+      document.dispatchEvent(down);
+      setTimeout(function() {
+        document.dispatchEvent(up);
+      }, 50);
+    }
+  </script>
+</body>
+</html>

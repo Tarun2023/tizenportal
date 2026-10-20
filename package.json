@@ -33,7 +33,8 @@
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -c --watch",
-    "clean": "node -e \"require('fs').rmSync('dist/tizenportal.js', {force: true})\""
+    "clean": "node -e \"require('fs').rmSync('dist/tizenportal.js', {force: true})\"",
+    "test": "node test/test-runner.cjs"
   },
   "devDependencies": {
     "@babel/core": "^7.23.0",
@@ -44,6 +45,7 @@
     "@rollup/plugin-replace": "^6.0.3",
     "@rollup/plugin-terser": "^0.4.0",
     "clean-css": "^5.3.3",
+    "jsdom": "^28.1.0",
     "rollup": "^4.0.0",
     "rollup-plugin-string": "^3.0.0"
   },
