@@ -131,7 +131,7 @@ var AD_NETWORKS = [
   'stake.com',
 ];
 
-// Analytics and tracking
+// Analytics, telemetry, and tracking networks (from uBlock / EasyPrivacy)
 var ANALYTICS_PATTERNS = [
   'doubleverify.com',
   'scorecardresearch.com',
@@ -139,6 +139,32 @@ var ANALYTICS_PATTERNS = [
   'chartbeat.com',
   'facebook.com/tr',
   'fbevents',
+  'clarity.ms',
+  'hotjar.com',
+  'hotjar.io',
+  'segment.io',
+  'segment.com',
+  'mixpanel.com',
+  'amplitude.com',
+  'newrelic.com',
+  'nr-data.net',
+  'mc.yandex.ru',
+  'yandex.ru/watch',
+  'statcounter.com',
+  'histats.com',
+  'crazyegg.com',
+  'mouseflow.com',
+  'inspectlet.com',
+  'luckyorange.net',
+  'optimizely.com',
+  'branch.io',
+  'adjust.com',
+  'appsflyer.com',
+  'datadoghq-browser-agent.com',
+  'browser-intake-datadoghq.com',
+  'telemetry',
+  'event-tracker',
+  'track.php',
 ];
 
 // Generic ad-related terms (used in strict mode)
@@ -1119,7 +1145,7 @@ export default {
     }
 
     try {
-      // Common analytics stubs
+      // Common analytics and telemetry stubs
       if (!win.gtag) win.gtag = function() {};
       if (!win.ga) win.ga = function() {};
       if (!win.fbq) win.fbq = function() {};
@@ -1129,6 +1155,11 @@ export default {
         win.dataLayer.push = function() {};
       }
       if (!win.__tcfapi) win.__tcfapi = function() {};
+      if (!win.clarity) win.clarity = function() {};
+      if (!win.hj) win.hj = function() {};
+      if (!win.ym) win.ym = function() {};
+      if (!win.mixpanel) win.mixpanel = { track: function() {}, init: function() {}, identify: function() {} };
+      if (!win.amplitude) win.amplitude = { logEvent: function() {}, init: function() {} };
     } catch (err) {
       // Ignore
     }

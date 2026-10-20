@@ -204,6 +204,15 @@ setTimeout(() => {
   assert(typeof win.gtag === 'function', 'window.gtag is stubbed');
   assert(typeof win.ga === 'function', 'window.ga is stubbed');
   assert(typeof win.fbq === 'function', 'window.fbq is stubbed');
+  assert(typeof win.clarity === 'function', 'window.clarity telemetry is stubbed');
+  assert(typeof win.hj === 'function', 'window.hj (Hotjar) telemetry is stubbed');
+  assert(typeof win.ym === 'function', 'window.ym (Yandex) telemetry is stubbed');
+  assert(typeof win.mixpanel === 'object', 'window.mixpanel telemetry is stubbed');
+  assert(typeof win.amplitude === 'object', 'window.amplitude telemetry is stubbed');
+  assert(adblockBundle.isAdURL('https://clarity.ms/collect'), 'Clarity telemetry domain recognized as ad/tracker URL');
+  assert(adblockBundle.isAdURL('https://mc.yandex.ru/watch'), 'Yandex Metrica recognized as ad/tracker URL');
+  assert(adblockBundle.isAdURL('https://hotjar.com/api'), 'Hotjar recognized as ad/tracker URL');
+  assert(adblockBundle.isAdURL('https://segment.io/v1/t'), 'Segment telemetry recognized as ad/tracker URL');
   assert(adblockBundle.getBlockedCount() >= 5, 'adblock.getBlockedCount() tracked blocked items correctly (count: ' + adblockBundle.getBlockedCount() + ')');
 
   console.log('\n--- Test Group 7: Persistent Statistics & Global Storage ---');
