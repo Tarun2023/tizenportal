@@ -5,8 +5,15 @@
   "description": "Blocks advertisements and tracking scripts for cleaner browsing",
   "author": "TizenPortal",
   "viewportLock": false,
-  "provides": ["ad-blocking", "tracker-blocking", "cookie-banner-hiding"],
+  "provides": ["ad-blocking", "tracker-blocking", "cookie-banner-hiding", "popup-blocking"],
   "options": [
+    {
+      "key": "blockPopups",
+      "label": "Block Popups & New Tabs",
+      "type": "toggle",
+      "default": true,
+      "description": "Block popup ads and prevent opening new tabs that freeze TV navigation"
+    },
     {
       "key": "strict",
       "label": "Strict Mode",

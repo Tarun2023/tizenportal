@@ -33,8 +33,9 @@ var GOOGLE_PATTERNS = [
   'pagead2',
 ];
 
-// Third-party ad networks
+// Third-party ad networks, pop-up/pop-under providers, video ad wrappers & redirectors (from uBlock / EasyList)
 var AD_NETWORKS = [
+  // Major ad exchanges & networks
   'taboola.com',
   'outbrain.com',
   'revcontent.com',
@@ -49,6 +50,84 @@ var AD_NETWORKS = [
   'openx.net',
   'advertising.com',
   'amazon-adsystem.com',
+
+  // Streaming, video player & popup/popunder ad networks
+  'popads.net',
+  'popcash.net',
+  'propellerads.com',
+  'adsterra.com',
+  'monetag.com',
+  'hilltopads.com',
+  'exoclick.com',
+  'clickadu.com',
+  'onclickprediction.com',
+  'onclickperformance.com',
+  'onclickalgo.com',
+  'inpagepush.com',
+  'trafficjunky.com',
+  'trafficstars.com',
+  'adcash.com',
+  'admaven.com',
+  'bidvertiser.com',
+  'yllix.com',
+  'evadav.com',
+  'richpush.co',
+  'rollerads.com',
+  'clickraine.com',
+  'cootlogu.net',
+  'deloplen.com',
+  'gloaphoo.net',
+  'robering.biz',
+  'sovrn.com',
+  'tsyndicate.com',
+  'juicyads.com',
+  'zeropark.com',
+  'galaksion.com',
+  'vidoomy.com',
+  'aniview.com',
+  'spotxchange.com',
+  'teads.tv',
+  'springserve.com',
+  'smartadserver.com',
+  'connatix.com',
+  'primis.tech',
+  'playwire.com',
+  'vidazoo.com',
+  'kiosked.com',
+  'media.net',
+  'serving-sys.com',
+  'flashtalking.com',
+  'innovid.com',
+  'tremorhub.com',
+  'unrulymedia.com',
+  'moatads.com',
+  'adform.net',
+  'casalemedia.com',
+  'yieldmo.com',
+  'sharethrough.com',
+  'lijit.com',
+  'undertone.com',
+  'exponential.com',
+  'gumgum.com',
+  'contextweb.com',
+  'alwingulla.com',
+  'whoushoo.com',
+  'veepoump.com',
+  'mousache.com',
+  'thetroubletomb.com',
+  'shukriya90.com',
+  'highcpmgate.com',
+  'highperformanceformat.com',
+
+  // Betting / spam redirectors frequently triggered on click
+  'bet365.com',
+  '1xbet.com',
+  '1x-bet.com',
+  'melbet.com',
+  'parimatch.com',
+  'mostbet.com',
+  'betwinner.com',
+  'stake.com',
 ];
 
 // Analytics and tracking
@@ -68,6 +147,16 @@ var GENERIC_AD_TERMS = [
   'adservice',
   '/ads/',
   '/ad/',
+  'popunder',
+  'popup-ad',
+  'clickunder',
+  'ad_script',
+  'vast.xml',
+  'inpagepush',
+  'ad-delivery',
+  'adcontent',
+  'banner-ad',
+  'traffic-direct',
 ];
 
 // Tracking terms (used in strict mode)
@@ -97,14 +186,14 @@ function buildRegexPatterns() {
   // Build standard pattern (Google + networks + analytics)
   var standardPatterns = []
     .concat(GOOGLE_PATTERNS)
-    .concat(AD_NETWORKS.map(function(n) { return n.replace('.', '\\.'); }))
-    .concat(ANALYTICS_PATTERNS.map(function(n) { return n.replace('.', '\\.').replace('/', '\\/'); }));
+    .concat(AD_NETWORKS.map(function(n) { return n.replace(/\./g, '\\.'); }))
+    .concat(ANALYTICS_PATTERNS.map(function(n) { return n.replace(/\./g, '\\.').replace(/\//g, '\\/'); }));
   
   AD_REGEX = new RegExp(standardPatterns.join('|'), 'i');
   
   // Build strict pattern (standard + generic ad terms + tracking + promo)
   var strictPatterns = standardPatterns
-    .concat(GENERIC_AD_TERMS.map(function(t) { return t.replace('/', '\\/'); }))
+    .concat(GENERIC_AD_TERMS.map(function(t) { return t.replace(/\//g, '\\/'); }))
     .concat(TRACKING_TERMS)
     .concat(PROMO_TERMS);
   
@@ -209,6 +298,41 @@ var BANNER_KEYWORDS = [
 ];
 
 /**
+ * Mock Window object returned when popups are blocked so calling scripts do not crash
+ */
+function createMockWindow() {
+  var dummyWin = {
+    closed: false,
+    defaultStatus: '',
+    document: null,
+    frameElement: null,
+    frames: [],
+    length: 0,
+    name: '',
+    opener: null,
+    parent: null,
+    self: null,
+    top: null,
+    window: null,
+    blur: function() {},
+    close: function() { this.closed = true; },
+    focus: function() {},
+    postMessage: function() {},
+    print: function() {},
+    stop: function() {},
+    location: {
+      href: 'about:blank',
+      replace: function() {},
+      assign: function() {},
+      reload: function() {}
+    }
+  };
+  dummyWin.self = dummyWin;
+  dummyWin.window = dummyWin;
+  return dummyWin;
+}
+
+/**
  * State
  */
 var state = {
@@ -229,6 +353,12 @@ var state = {
   targetWindow: null,
   hideCookieBanners: false,
   inlineHeuristics: true,
+  blockPopups: true,
+  originalWindowOpen: null,
+  popupIntercepted: false,
+  clickListenerInstalled: false,
+  clickHandler: null,
+  originalAnchorClick: null,
   urlCheckCache: {}, // Cache for URL checks (cleared on navigation)
 };
 
@@ -243,8 +373,10 @@ export default {
    */
   onBeforeLoad: function(win, card) {
     console.log('TizenPortal [AdBlock]: Preparing');
+    this.cleanup();
     state.blocked = 0;
     state.enabled = true;
+    state.targetWindow = win;
     state.urlCheckCache = {}; // Clear cache on new page
     
     // Build regex patterns if not already built
@@ -253,6 +385,10 @@ export default {
     }
     
     this.applyOptions(card);
+
+    // Install early pop-up blocker so scripts during page load cannot open secondary tabs
+    this.interceptPopups(win);
+
     if (state.strict) {
       this.injectStrictScript(win);
       this.injectStrictStyles(win);
@@ -260,7 +396,6 @@ export default {
     if (state.hideCookieBanners) {
       this.injectCookieStyles(win);
     }
-    this.cleanup();
   },
 
   /**
@@ -271,6 +406,7 @@ export default {
 
     try {
       var doc = win.document || document;
+      state.targetWindow = win;
       
       if (!doc || !win) {
         console.warn('TizenPortal [AdBlock]: Cannot access document');
@@ -283,6 +419,12 @@ export default {
       
       // Block ad scripts from loading
       this.interceptRequests(win);
+
+      // Block popups and new tabs on TV
+      this.interceptPopups(win);
+
+      // Block link clicks to ad networks, eliminate _blank and clickjack traps
+      this.interceptLinkClicks(win);
 
       // Intercept DOM insertions for ad elements
       this.interceptDomInsertion(win);
@@ -340,6 +482,7 @@ export default {
     state.strict = !!options.strict;
     state.hideCookieBanners = !!options.hideCookieBanners;
     state.inlineHeuristics = options.inlineHeuristics !== false;
+    state.blockPopups = options.blockPopups !== false;
 
     // Parse allowlist contents (if provided)
     var allowlistText = optionData.allowlistUrl || '';
@@ -531,6 +674,9 @@ export default {
         console.log('TizenPortal [AdBlock]: Removed', imageRemoved, 'ad images');
       }
     }
+
+    // Remove full-screen clickjacking / invisible overlays
+    this.removeClickOverlays(doc);
   },
 
   /**
@@ -1068,7 +1214,8 @@ export default {
     
     // Quick checks for common ad patterns
     var adPatterns = ['adsbygoogle', 'ad-container', 'ad-wrapper', 'ad-banner', 
-                      'advertisement', 'taboola', 'outbrain', 'sponsored'];
+                      'advertisement', 'taboola', 'outbrain', 'sponsored',
+                      'popunder', 'click-trap', 'popup-overlay', 'overlay-click'];
     if (state.strict) {
       adPatterns = adPatterns.concat(['promoted', 'promo', 'sponsor', 'advert', 'ad-', 'ads-']);
     }
@@ -1088,6 +1235,225 @@ export default {
     }
     
     return false;
+  },
+
+  // ==========================================================================
+  // POPUP & OVERLAY INTERCEPTION
+  // ==========================================================================
+
+  /**
+   * Intercept and block popup windows (window.open)
+   * Prevents spawning secondary tabs on TV that freeze Tizen navigation
+   * @param {Window} win
+   */
+  interceptPopups: function(win) {
+    if (state.popupIntercepted || !win) return;
+    var self = this;
+
+    try {
+      state.originalWindowOpen = win.open;
+      win.open = function(url, target, features) {
+        var urlStr = '';
+        if (typeof url === 'string') {
+          urlStr = url;
+        } else if (url && url.url) {
+          urlStr = url.url;
+        } else if (url && url.toString) {
+          urlStr = url.toString();
+        }
+
+        var isBlankOrAd = !urlStr || urlStr === 'about:blank' || urlStr === 'javascript:void(0)' || self.isAdURL(urlStr);
+
+        if (state.blockPopups) {
+          if (isBlankOrAd || self.isLikelyPopup(urlStr, target, features)) {
+            console.log('TizenPortal [AdBlock]: Blocked popup window.open:', (urlStr || '(blank)').substring(0, 80));
+            state.blocked++;
+            return createMockWindow();
+          }
+
+          // If it's a legitimate non-ad navigation, redirect SAME window instead of opening a disconnected tab on TV!
+          console.log('TizenPortal [AdBlock]: Redirected window.open to current window:', urlStr.substring(0, 80));
+          win.location.href = urlStr;
+          return createMockWindow();
+        }
+
+        if (self.isAdURL(urlStr)) {
+          console.log('TizenPortal [AdBlock]: Blocked ad window.open:', urlStr.substring(0, 80));
+          state.blocked++;
+          return createMockWindow();
+        }
+
+        return state.originalWindowOpen ? state.originalWindowOpen.apply(win, arguments) : createMockWindow();
+      };
+
+      state.popupIntercepted = true;
+      console.log('TizenPortal [AdBlock]: Popup interception active');
+    } catch (err) {
+      console.warn('TizenPortal [AdBlock]: Could not intercept window.open:', err.message);
+    }
+  },
+
+  /**
+   * Determine if a window.open call is likely a popup or popunder
+   * @param {string} urlStr
+   * @param {string} target
+   * @param {string} features
+   * @returns {boolean}
+   */
+  isLikelyPopup: function(urlStr, target, features) {
+    if (target === '_blank' || target === '_new') {
+      return true;
+    }
+    if (features && typeof features === 'string') {
+      var feat = features.toLowerCase();
+      if (feat.indexOf('width=') !== -1 || feat.indexOf('height=') !== -1 || feat.indexOf('popup') !== -1) {
+        return true;
+      }
+    }
+    return false;
+  },
+
+  /**
+   * Intercept clicks to block ad links, strip target="_blank", and remove click overlays
+   * @param {Window} win
+   */
+  interceptLinkClicks: function(win) {
+    if (state.clickListenerInstalled || !win || !win.document) return;
+    var self = this;
+    var doc = win.document;
+
+    state.clickHandler = function(e) {
+      try {
+        var target = e.target;
+        if (!target) return;
+
+        // Check if user clicked an anchor or child of anchor
+        var a = typeof target.closest === 'function' ? target.closest('a') : null;
+        if (!a && target.tagName === 'A') a = target;
+
+        if (a) {
+          var href = a.href || a.getAttribute('href') || '';
+
+          // Check if link target is ad
+          if (self.isAdURL(href)) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+            state.blocked++;
+            console.log('TizenPortal [AdBlock]: Blocked click on ad link:', href.substring(0, 80));
+            return;
+          }
+
+          // Strip target="_blank" so TV browser never opens a secondary tab
+          var targetAttr = (a.getAttribute('target') || a.target || '').toLowerCase();
+          if (targetAttr === '_blank' || targetAttr === '_new') {
+            a.removeAttribute('target');
+            a.target = '';
+            console.log('TizenPortal [AdBlock]: Neutralized target="_blank" on link:', href.substring(0, 80));
+          }
+        }
+
+        // Check for clickjacking overlay (elements covering screen with high z-index)
+        if (self.isClickOverlay(target)) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          target.remove();
+          state.blocked++;
+          console.log('TizenPortal [AdBlock]: Intercepted and removed clickjack overlay');
+          return;
+        }
+      } catch (err) {
+        // Ignore
+      }
+    };
+
+    // Attach in capture phase to intercept before site's event handlers
+    doc.addEventListener('click', state.clickHandler, true);
+    state.clickListenerInstalled = true;
+
+    // Also wrap HTMLAnchorElement.prototype.click
+    try {
+      if (win.HTMLAnchorElement && win.HTMLAnchorElement.prototype) {
+        state.originalAnchorClick = win.HTMLAnchorElement.prototype.click;
+        win.HTMLAnchorElement.prototype.click = function() {
+          var href = this.href || this.getAttribute('href') || '';
+          if (self.isAdURL(href)) {
+            console.log('TizenPortal [AdBlock]: Blocked programmatic anchor click:', href.substring(0, 80));
+            state.blocked++;
+            return;
+          }
+          if ((this.target || '').toLowerCase() === '_blank') {
+            this.removeAttribute('target');
+            this.target = '';
+          }
+          return state.originalAnchorClick.apply(this, arguments);
+        };
+      }
+    } catch (err) {
+      // Ignore
+    }
+  },
+
+  /**
+   * Determine if an element is a transparent or clickjack overlay
+   * @param {Element} el
+   * @returns {boolean}
+   */
+  isClickOverlay: function(el) {
+    if (!el || el === document.body || el === document.documentElement) return false;
+    // Don't flag TizenPortal UI
+    if (el.id && el.id.indexOf('tp-') === 0) return false;
+    if (el.className && typeof el.className === 'string' && el.className.indexOf('tp-') !== -1) return false;
+
+    try {
+      var win = state.targetWindow || window;
+      var style = win.getComputedStyle ? win.getComputedStyle(el) : el.style;
+      if (!style) return false;
+
+      var zIndex = parseInt(style.zIndex, 10);
+      if (isNaN(zIndex) || zIndex < 1000) return false;
+
+      var pos = (style.position || '').toLowerCase();
+      if (pos !== 'fixed' && pos !== 'absolute') return false;
+
+      var rect = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+      if (!rect) return false;
+
+      var vw = win.innerWidth || 1920;
+      var vh = win.innerHeight || 1080;
+
+      // Covers at least 70% of viewport
+      if (rect.width >= vw * 0.7 && rect.height >= vh * 0.7) {
+        var text = (el.innerText || el.textContent || '').trim();
+        // If it has virtually no text or transparent opacity, it's an invisible clickjack trap
+        if (text.length < 20 || style.opacity === '0' || style.visibility === 'hidden') {
+          return true;
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return false;
+  },
+
+  /**
+   * Find and remove clickjacking overlays from document
+   * @param {Document} doc
+   */
+  removeClickOverlays: function(doc) {
+    try {
+      var overlays = doc.querySelectorAll('div, a, span');
+      for (var i = 0; i < overlays.length; i++) {
+        if (this.isClickOverlay(overlays[i])) {
+          overlays[i].remove();
+          state.blocked++;
+          console.log('TizenPortal [AdBlock]: Removed clickjack overlay element');
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
   },
 
   // ==========================================================================
@@ -1114,6 +1480,36 @@ export default {
       }
     } catch (err) {
       console.warn('TizenPortal [AdBlock]: cleanup interval error:', err.message);
+    }
+
+    if (state.popupIntercepted) {
+      try {
+        var winOpen = state.targetWindow || window;
+        if (state.originalWindowOpen && winOpen) {
+          winOpen.open = state.originalWindowOpen;
+          state.originalWindowOpen = null;
+        }
+      } catch (err) {
+        console.warn('TizenPortal [AdBlock]: cleanup popup intercept error:', err.message);
+      }
+      state.popupIntercepted = false;
+    }
+
+    if (state.clickListenerInstalled) {
+      try {
+        var winClick = state.targetWindow || window;
+        if (state.clickHandler && winClick && winClick.document) {
+          winClick.document.removeEventListener('click', state.clickHandler, true);
+          state.clickHandler = null;
+        }
+        if (state.originalAnchorClick && winClick && winClick.HTMLAnchorElement && winClick.HTMLAnchorElement.prototype) {
+          winClick.HTMLAnchorElement.prototype.click = state.originalAnchorClick;
+          state.originalAnchorClick = null;
+        }
+      } catch (err) {
+        console.warn('TizenPortal [AdBlock]: cleanup click listener error:', err.message);
+      }
+      state.clickListenerInstalled = false;
     }
 
     if (state.domIntercepted) {

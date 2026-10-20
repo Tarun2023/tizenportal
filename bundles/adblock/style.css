@@ -294,3 +294,33 @@ ins.adsbygoogle,
   margin: 0 !important;
   padding: 0 !important;
 }
+
+/* ==========================================================================
+   POPUP, CLICKJACK & OVERLAY PROTECTION
+   Neutralize invisible full-screen click traps and popunder triggers
+   ========================================================================== */
+div[style*="z-index: 2147483647"],
+div[style*="z-index: 999999"],
+div[style*="z-index: 99999"],
+a[style*="z-index: 2147483647"],
+a[style*="z-index: 999999"],
+a[style*="z-index: 99999"],
+[class*="click-trap"],
+[id*="click-trap"],
+[class*="popunder"],
+[id*="popunder"],
+[class*="popup-overlay"],
+[id*="popup-overlay"],
+[class*="interstitial-overlay"],
+[id*="interstitial-overlay"],
+[id^="p-overlay"],
+[class^="p-overlay"],
+.overlay-click,
+.overlay-ad,
+.ad-overlay {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+

@@ -1,11 +1,11 @@
 {
-  "name": "@axelnanol/tizenportal",
+  "name": "@Tarun2023/tizenportal",
   "appName": "TizenPortal",
-  "version": "1120",
-  "description": "Universal Tizen Browser Shell",
+  "version": "1121",
+  "description": "Universal Tizen Browser Shell with Popup Blocker & Ad Protection (Fork of axelnanol/tizenportal)",
   "type": "module",
   "packageType": "mods",
-  "websiteURL": "https://axelnanol.github.io/tizenportal/dist/index.html?v=1120",
+  "websiteURL": "https://Tarun2023.github.io/tizenportal/dist/index.html?v=1121",
   "main": "dist/tizenportal.js",
   "keys": [
     "MediaPlayPause",
@@ -21,11 +21,14 @@
     "ColorF2Yellow",
     "ColorF3Blue"
   ],
-  "author": "Axel Nanol",
+  "author": "Tarun2023",
+  "contributors": [
+    "Axel Nanol (Original Author - https://github.com/axelnanol/tizenportal)"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/axelnanol/tizenportal"
+    "url": "https://github.com/Tarun2023/tizenportal"
   },
   "scripts": {
     "build": "rollup -c",

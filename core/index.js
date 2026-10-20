@@ -144,7 +144,7 @@ const VERSION = '__VERSION__';
 /**
  * Base URL of the TizenPortal GitHub Pages deployment
  */
-var PORTAL_BASE_URL = 'https://axelnanol.github.io/tizenportal/dist';
+var PORTAL_BASE_URL = 'https://Tarun2023.github.io/tizenportal/dist';
 
 /**
  * TizenPortal's own favicon URL — used as a fallback icon for cards
@@ -556,33 +556,61 @@ function saveLastCard(card) {
     };
     var json = JSON.stringify(payload);
     sessionStorage.setItem(LAST_CARD_KEY, json);
-    // Note: window.name is no longer used. All cross-origin navigations
-    // must route through the portal via the link interceptor and crossnav relay.
+
+    // Also persist compact session info in window.name so cross-origin redirects in the same tab retain bundle and portal return capability
+    try {
+      var compact = {
+        cardId: payload.cardId,
+        name: payload.name,
+        url: payload.url,
+        featureBundle: payload.featureBundle || 'default',
+        bundleOptions: payload.bundleOptions || {},
+        bundleOptionData: payload.bundleOptionData || {},
+        crossHistory: (payload.crossHistory || []).slice(-10)
+      };
+      window.name = '__tp_session__=' + encodeURIComponent(JSON.stringify(compact));
+    } catch (e) {
+      // Ignore
+    }
   } catch (err) {
     // Ignore
   }
 }
 
 /**
- * Load card from sessionStorage (same-origin fallback).
+ * Load card from sessionStorage (same-origin fallback) or window.name (cross-origin redirect fallback).
  * When navigating within the same origin, sessionStorage contains
  * the previously loaded card config from saveLastCard().
  */
 function loadLastCard() {
   try {
     var stored = sessionStorage.getItem(LAST_CARD_KEY);
-    if (!stored) return null;
-    var card = JSON.parse(stored);
-    if (!card) return null;
-    // saveLastCard() stores the card id as 'cardId', not 'id'.
-    // Normalise so that state.currentCard.id is always set, which is
-    // required for installLinkInterceptor() to intercept cross-origin
-    // links and route them through the portal relay.
-    if (!card.id && card.cardId) card.id = card.cardId;
-    return card;
+    if (stored) {
+      var card = JSON.parse(stored);
+      if (card) {
+        if (!card.id && card.cardId) card.id = card.cardId;
+        return card;
+      }
+    }
   } catch (err) {
-    return null;
+    // Continue to window.name fallback
   }
+
+  // Fallback: check window.name for cross-origin redirects within the same tab
+  try {
+    if (window.name && window.name.indexOf('__tp_session__=') === 0) {
+      var jsonStr = decodeURIComponent(window.name.substring('__tp_session__='.length));
+      var sessionCard = JSON.parse(jsonStr);
+      if (sessionCard) {
+        if (!sessionCard.id && sessionCard.cardId) sessionCard.id = sessionCard.cardId;
+        return sessionCard;
+      }
+    }
+  } catch (err) {
+    // Ignore
+  }
+
+  return null;
 }
 
 function startTextInputProtection() {
@@ -932,6 +960,30 @@ function waitForPayload(maxWaitMs, intervalMs) {
 async function initTargetSite() {
   tpHud('Finding card...');
   
+  // Early popup safeguard for TV browser - prevent popup tabs from hijacking TV input device
+  try {
+    if (window.open && !window._tpOriginalOpen) {
+      window._tpOriginalOpen = window.open;
+      window.open = function(url, target, features) {
+        var u = typeof url === 'string' ? url : (url && url.url ? url.url : '');
+        console.log('TizenPortal [TV Early Guard]: window.open intercepted:', (u || '(blank)').substring(0, 60));
+        if (u && u !== 'about:blank' && u.indexOf('http') === 0) {
+          window.location.href = u;
+        }
+        return {
+          closed: false,
+          blur: function() {},
+          close: function() { this.closed = true; },
+          focus: function() {},
+          postMessage: function() {},
+          location: { href: u || 'about:blank' }
+        };
+      };
+    }
+  } catch (e) {
+    // Ignore
+  }
+
   // Inject base CSS for overlay components (pointer, address bar, etc.)
   injectOverlayStyles();
 
@@ -990,14 +1042,11 @@ async function initTargetSite() {
     }
   }
 
-  // Fallback: reuse last card from session (same-origin navigations only).
-  // When navigating within the same origin (e.g. SPA page loads), sessionStorage
-  // contains the previously loaded card config. For cross-origin navigations,
-  // everything must come via the portal with a #tp= payload (no sessionStorage).
+  // Fallback: reuse last card from session.
+  // Checks sessionStorage (same-origin) or window.name (cross-origin redirects).
   if (!matchedCard) {
     var lastCard = loadLastCard();
     if (lastCard) {
-      // Verify this is a same-origin session reuse, not a cross-origin leak
       var lastOrigin = (lastCard.url || '').split('/').slice(0, 3).join('/');
       var currentOrigin = window.location.href.split('/').slice(0, 3).join('/');
       if (lastOrigin === currentOrigin) {
@@ -1008,7 +1057,19 @@ async function initTargetSite() {
         log('Using last card bundle (same-origin): ' + (matchedCard.featureBundle || 'default'));
         tpHud('Card (session): ' + (matchedCard.name || 'Last Card'));
       } else {
-        log('Session card origin mismatch; not reusing (last: ' + lastOrigin + ', current: ' + currentOrigin + ')');
+        // Cross-origin redirect within the same tab!
+        // Preserve the originating bundle (especially adblock) and cardId so that:
+        // 1. AdBlock remains active to protect against ad scripts on the redirected page
+        // 2. Yellow button ("Return to portal") still knows the cardId and works!
+        // 3. Remote keys stay registered
+        log('Cross-origin navigation detected from ' + lastOrigin + ' to ' + currentOrigin + '; preserving bundle: ' + (lastCard.featureBundle || 'default'));
+        matchedCard = Object.assign({}, lastCard, {
+          url: window.location.href,
+          name: document.title || lastCard.name || 'Redirected Site',
+          featureBundle: lastCard.featureBundle || 'adblock'
+        });
+        tpHud('Card (redirected): ' + (matchedCard.featureBundle || 'default'));
+        saveLastCard(matchedCard);
       }
     }
   }

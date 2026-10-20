@@ -2,6 +2,8 @@
 
 ![Tizen](https://img.shields.io/badge/Tizen-3.0%2B-blueviolet) ![License](https://img.shields.io/badge/license-MIT-green)
 
+> **Fork Note**: This project is a customized fork of [axelnanol/tizenportal](https://github.com/axelnanol/tizenportal) by Axel Nanol. Maintained by [Tarun2023](https://github.com/Tarun2023/tizenportal) with integrated TV popup blocking, clickjack protection, and redirect safeguards for Samsung Smart TVs.
+
 **TizenPortal** is a browser shell for Samsung Smart TVs running Tizen OS. It provides a launcher for managing any websites and injects site-specific fixes for TV compatibility (self-hosted apps like **Audiobookshelf** are a great fit, but not required).
 
 ---
@@ -19,11 +21,12 @@ A TV-friendly launcher with customizable themes to manage your sites in one plac
 Runs as a TizenBrew module to inject fixes into any site.
 - **Unified Registry System** - Features and userscripts managed through a consistent registry-based API
 - **Declarative bundle system** - Bundles are primarily configuration, which can significantly reduce repetitive DOM manipulation code
-- Bundle CSS/JS applied automatically
-- Element registration API for focusable elements, styling, and DOM manipulation
-- Card registration for multi-element interactive cards
-- Viewport locking and focus tooling for responsive sites
-- Cross-origin safe (iframe access is limited; runtime guards access)
+- **Bundle CSS/JS applied automatically**
+- **Element registration API** for focusable elements, styling, and DOM manipulation
+- **Card registration** for multi-element interactive cards
+- **Viewport locking and focus tooling** for responsive sites
+- **Cross-origin safe** (iframe access is limited; runtime guards access)
+- **Popup & Clickjack Blocker** (blocks secondary popup tabs from stealing TV remote control focus)
 
 ### 🎮 Remote Control Support
 - **D-pad navigation** with spatial focus
@@ -40,7 +43,7 @@ Runs as a TizenBrew module to inject fixes into any site.
 This project is designed to be loaded via **TizenBrew** on your Samsung TV.
 
 1. **Open TizenBrew** on your Samsung TV
-2. **Add Module:** `axelnanol/tizenportal`
+2. **Add Module:** `Tarun2023/tizenportal`
 3. **Launch** TizenPortal from your TizenBrew dashboard
 
 TizenBrew will open the portal and inject the runtime into all navigated pages.
@@ -194,6 +197,7 @@ TizenPortal is designed with security as a priority:
 
 This project uses code and inspiration from the following sources:
 
+- **[Axel Nanol / tizenportal](https://github.com/axelnanol/tizenportal)** — Original creator and author of TizenPortal
 - **[WICG/spatial-navigation](https://github.com/WICG/spatial-navigation)** — Spatial navigation polyfill (`spatial-navigation-polyfill` npm package), modified with cross-origin guards and UMD wrapper fix
 - **[Financial-Times/polyfill-library](https://github.com/Financial-Times/polyfill-library)** — DOMRect polyfill
 - **[TizenTube](https://github.com/reisxd/TizenTube)** — Inspiration and approach for Tizen TV compatibility

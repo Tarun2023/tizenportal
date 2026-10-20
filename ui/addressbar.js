@@ -547,7 +547,7 @@ function handleGo() {
 function handleInfo() {
   console.log('TizenPortal: Address bar - Info');
   hideAddressBar();
-  var docsUrl = 'https://axelnanol.github.io/tizenportal/';
+  var docsUrl = 'https://Tarun2023.github.io/tizenportal/';
   if (window.TizenPortal && window.TizenPortal.navigateUrl) {
     window.TizenPortal.navigateUrl(docsUrl);
   } else {
